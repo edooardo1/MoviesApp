@@ -1,0 +1,30 @@
+.horizontal-card {
+  width: 100%;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
+.poster img {
+  width: 150px;
+  height: auto;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.info {
+  flex: 1;
+}
+
+.meta {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #888;
+}
+
+.tagContainer {
+  margin-bottom: 8px;
+}
