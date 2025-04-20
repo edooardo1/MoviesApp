@@ -1,13 +1,20 @@
 import React from 'react'
-import { Card, Tag } from 'antd'
+import { Card, Tag, Spin } from 'antd'
 import { format } from 'date-fns'
 
 import truncateText from '../Utils/truncateText'
-
 import './MovieCard.css'
 
 function MovieCard({ movie }) {
-  const { title, overview, release_date: releaseDate, poster_path: posterPath } = movie
+  const { title, overview, release_date: releaseDate, poster_path: posterPath } = movie || {}
+
+  if (!title || !posterPath || !overview) {
+    return (
+      <div className="card-loading">
+        <Spin size="large" tip="Загрузка..." />
+      </div>
+    )
+  }
 
   return (
     <Card hoverable className="horizontal-card">

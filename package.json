@@ -9,6 +9,7 @@
     "@testing-library/user-event": "^13.5.0",
     "antd": "^5.24.6",
     "date-fns": "^4.1.0",
+    "lodash.debounce": "^4.0.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-scripts": "5.0.1",
@@ -58,10 +59,10 @@
     "lint-staged": "^15.5.1",
     "prettier": "^3.5.3"
   },
-"lint-staged": {
-  "*.{js,jsx}": [
-    "eslint --fix",
-    "git add"
-  ]
-}
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "git add"
+    ]
+  }
 }
