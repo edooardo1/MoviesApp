@@ -1,11 +1,14 @@
 import React from 'react'
-import { Input, Pagination, Row, Col, Spin, Alert } from 'antd'
+import { Input, Pagination, Row, Col, Spin, Alert, Tabs } from 'antd'
 import debounce from 'lodash.debounce'
-import fetchMoviesByKeyword from './Services/API'
+
+import { fetchMoviesByKeyword, fetchRatedMovies, createGuestSession, fetchGenres } from './Services/API'
 import MovieCard from './Components/MovieCard'
+import GenreContext from './Context/GenreContext'
 import styles from './App.module.css'
 
 const { Search } = Input
+const { TabPane } = Tabs
 
 class App extends React.Component {
   constructor(props) {
@@ -17,17 +20,60 @@ class App extends React.Component {
       currentPage: 1,
       loading: false,
       error: null,
+      activeTab: 'search',
+      sessionId: null,
+      genres: [],
     }
 
-    this.debouncedSearch = debounce(this.handleSearch, 500)
+    this.debouncedSearch = debounce(this.loadMovies, 500)
   }
 
   componentDidMount() {
-    this.loadMovies()
+    const session = localStorage.getItem('guest_session_id')
+
+    if (session) {
+      this.setState({ sessionId: session }, () => {
+        this.loadGenres()
+        this.loadMovies()
+      })
+    } else {
+      createGuestSession().then((id) => {
+        localStorage.setItem('guest_session_id', id)
+        this.setState({ sessionId: id }, () => {
+          this.loadGenres()
+          this.loadMovies()
+        })
+      })
+    }
   }
 
   componentWillUnmount() {
     this.debouncedSearch.cancel()
+  }
+
+  loadGenres = () => {
+    fetchGenres().then((genres) => {
+      this.setState({ genres })
+    })
+  }
+
+  loadMovies = () => {
+    const { query, currentPage, activeTab, sessionId } = this.state
+
+    this.setState({ loading: true, error: null })
+
+    const loadFn =
+      activeTab === 'search'
+        ? () => fetchMoviesByKeyword(query, currentPage)
+        : () => fetchRatedMovies(sessionId, currentPage)
+
+    loadFn()
+      .then(({ movies, total }) => {
+        this.setState({ movies, total, loading: false })
+      })
+      .catch((err) => {
+        this.setState({ error: err.message, loading: false })
+      })
   }
 
   handleSearchInput = (e) => {
@@ -37,86 +83,90 @@ class App extends React.Component {
     })
   }
 
-  handleSearch = () => {
-    this.loadMovies()
-  }
-
-  loadMovies = () => {
-    const { query, currentPage } = this.state
-
-    if (!query.trim()) {
-      this.setState({ movies: [], total: 0, loading: false })
-      return
-    }
-
-    this.setState({ loading: true, error: null })
-
-    fetchMoviesByKeyword(query, currentPage)
-      .then(({ movies, total }) => {
-        this.setState({ movies, total, loading: false })
-      })
-      .catch((err) => {
-        this.setState({ error: err.message, loading: false })
-      })
-  }
-
   handlePageChange = (page) => {
     this.setState({ currentPage: page }, () => {
       this.loadMovies()
     })
   }
 
-  render() {
-    const { movies, total, loading, error, query, currentPage } = this.state
+  handleTabChange = (key) => {
+    this.setState({ activeTab: key, query: '', currentPage: 1, movies: [] }, () => {
+      this.loadMovies()
+    })
+  }
+
+  renderContent(movies, loading, error, query, currentPage, total, sessionId) {
+    if (error) {
+      return (
+        <Alert
+          message="Ошибка при загрузке фильмов"
+          description={error}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )
+    }
+
+    if (loading) {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+          <Spin size="large" tip="Загрузка фильмов..." />
+        </div>
+      )
+    }
+
+    if (movies.length === 0 && query.trim()) {
+      return <Alert message="Ничего не найдено по вашему запросу" type="info" showIcon />
+    }
 
     return (
-      <div className={styles.appContainer}>
-        <Search
-          placeholder="Введите название фильма"
-          onChange={this.handleSearchInput}
-          value={query}
-          allowClear
-          style={{ marginBottom: 24 }}
-        />
+      <>
+        <Row gutter={[24, 24]}>
+          {movies.map((movie) => (
+            <Col key={movie.id} xs={24} sm={24} md={12} lg={12}>
+              <MovieCard movie={movie} sessionId={sessionId} />
+            </Col>
+          ))}
+        </Row>
 
-        {error && (
-          <Alert
-            message="Ошибка при загрузке фильмов"
-            description={error}
-            type="error"
-            showIcon
-            style={{ marginBottom: 16 }}
+        {total > 20 && (
+          <Pagination
+            current={currentPage}
+            total={total}
+            pageSize={20}
+            onChange={this.handlePageChange}
+            style={{ marginTop: 24, textAlign: 'center' }}
           />
         )}
+      </>
+    )
+  }
 
-        {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-            <Spin size="large" tip="Загрузка фильмов..." />
-          </div>
-        ) : movies.length === 0 && query.trim() ? (
-          <Alert message="Ничего не найдено по вашему запросу" type="info" showIcon />
-        ) : (
-          <>
-            <Row gutter={[24, 24]}>
-              {movies.map((movie) => (
-                <Col key={movie.id} xs={24} sm={24} md={12} lg={12}>
-                  <MovieCard movie={movie} />
-                </Col>
-              ))}
-            </Row>
+  render() {
+    const { movies, total, loading, error, query, currentPage, activeTab, sessionId, genres } = this.state
 
-            {total > 20 && (
-              <Pagination
-                current={currentPage}
-                total={total}
-                pageSize={20}
-                onChange={this.handlePageChange}
-                style={{ marginTop: 24, textAlign: 'center' }}
+    return (
+      <GenreContext.Provider value={genres}>
+        <div className={styles.appContainer}>
+          <Tabs activeKey={activeTab} onChange={this.handleTabChange}>
+            <TabPane tab="Search" key="search">
+              <Search
+                placeholder="Введите название фильма"
+                onChange={this.handleSearchInput}
+                value={query}
+                allowClear
+                style={{ marginBottom: 24 }}
               />
-            )}
-          </>
-        )}
-      </div>
+              {this.renderContent(movies, loading, error, query, currentPage, total, sessionId)}
+            </TabPane>
+
+            <TabPane tab="Rated" key="rated">
+              {this.renderContent(movies, loading, error, query, currentPage, total, sessionId)}
+            </TabPane>
+          </Tabs>
+        </div>
+      </GenreContext.Provider>
     )
   }
 }

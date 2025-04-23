@@ -17,21 +17,23 @@
 
 .info {
   flex: 1;
+  position: relative;
 }
 
-.meta {
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #888;
-}
-
-.tagContainer {
-  margin-bottom: 8px;
-}
-
-.card-loading {
-  height: 350px;
+.header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+}
+
+.rating-badge {
+  border: 2px solid;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-weight: bold;
+  font-size: 14px;
+  display: flex;
   justify-content: center;
+  align-items: center;
 }
